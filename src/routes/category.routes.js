@@ -70,7 +70,7 @@ router.get('/', getCategories);
  *       401:
  *         description: No autorizado
  */
-router.post('/', protect, authorize('ADMIN'), createCategory);
+router.post('/', protect, authorize('ADMIN', 'CLIENTE'), createCategory);
 
 /**
  * @swagger
@@ -106,7 +106,7 @@ router.post('/', protect, authorize('ADMIN'), createCategory);
  *       404:
  *         description: Categoría no encontrada
  */
-router.put('/:id', protect, authorize('ADMIN'), updateCategory);
+router.put('/:id', protect, authorize('ADMIN', 'CLIENTE'), updateCategory);
 
 /**
  * @swagger

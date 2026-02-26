@@ -104,7 +104,7 @@ router.get('/:id', getProductById);
 router.post(
     '/',
     protect,
-    authorize('ADMIN'),
+    authorize('ADMIN', 'CLIENTE'),
     upload.single('imagen'),
     createProduct
 );
@@ -147,8 +147,8 @@ router.post(
 router.put(
     '/:id',
     protect,
-    authorize('ADMIN'),
-    upload.single('imagen'),
+    authorize('ADMIN', 'CLIENTE'),
+    upload.single('imagen'), 
     updateProduct
 );
 
