@@ -1,6 +1,6 @@
 # Inventario Backend - API RESTful para Gestión de Inventarios
 
-Este proyecto es una API RESTful robusta y escalable diseñada para la gestión de inventarios. Proporciona funcionalidades completas para la autenticación de usuarios, la administración de categorías y productos, incluyendo la carga de imágenes. La API está construida con Node.js, Express.js y PostgreSQL, y cuenta con documentación interactiva a través de Swagger UI.
+Este proyecto es una API RESTful robusta y escalable diseñada para la gestión de inventarios. Proporciona funcionalidades completas para la autenticación de usuarios, la administración de categorías y productos, incluyendo la carga de imágenes, **y ahora con un sistema avanzado de gestión de stock, movimientos y transacciones atómicas**. La API está construida con Node.js, Express.js y PostgreSQL, y cuenta con documentación interactiva a través de Swagger UI.
 
 ## 🌟 Características Principales
 
@@ -8,6 +8,9 @@ Este proyecto es una API RESTful robusta y escalable diseñada para la gestión 
 -   **Autorización:** Control de acceso basado en roles para proteger rutas sensibles.
 -   **Gestión de Productos (CRUD):** Operaciones completas para crear, leer, actualizar y eliminar productos.
 -   **Gestión de Categorías (CRUD):** Operaciones completas para crear, leer, actualizar y eliminar categorías.
+-   **Gestión de Inventario Pro:** Endpoints especializados para vender productos (`sell`) y reabastecer stock (`add-stock`) con validaciones de reglas de negocio.
+-   **Trazabilidad y Auditoría:** Registro automático de cada movimiento de stock en un historial detallado (quién, cuándo, cuánto y por qué).
+-   **Integridad de Datos:** Implementación de **Transacciones de Base de Datos (Sequelize Transactions)** para asegurar la consistencia absoluta entre el stock y el historial de movimientos.
 -   **Carga de Imágenes:** Integración con Cloudinary para el almacenamiento y gestión de imágenes de productos.
 -   **API RESTful:** Diseño de API siguiendo principios REST para una comunicación clara y eficiente.
 -   **Base de Datos PostgreSQL:** Uso de Sequelize como ORM para una interacción robusta con la base de datos relacional.
@@ -18,7 +21,7 @@ Este proyecto es una API RESTful robusta y escalable diseñada para la gestión 
 -   **Node.js**: Entorno de ejecución JavaScript.
 -   **Express.js**: Framework web para Node.js, para construir la API de manera rápida y eficiente.
 -   **PostgreSQL**: Sistema de gestión de bases de datos relacionales.
--   **Sequelize**: ORM (Object-Relational Mapper) para Node.js, que facilita la interacción con bases de datos SQL como PostgreSQL.
+-   **Sequelize**: ORM (Object-Relational Mapper) para Node.js, que facilita la interacción con bases de datos SQL como PostgreSQL. Se utilizan **Transacciones SQL** para operaciones críticas de inventario.
 -   **JSON Web Tokens (JWT)**: Para la autenticación segura y la gestión de sesiones de usuario.
 -   **Bcryptjs**: Librería para el hashing de contraseñas, garantizando un almacenamiento seguro.
 -   **Cloudinary**: Servicio en la nube para la gestión y optimización de imágenes.
@@ -110,32 +113,25 @@ El proyecto sigue una estructura modular y organizada para facilitar el desarrol
 
 ```
 inventario-backend/
-├── .gitignore               # Archivos y directorios ignorados por Git
-├── index.js                 # Punto de entrada principal de la aplicación
-├── package.json             # Metadatos del proyecto y lista de dependencias
-├── package-lock.json        # Registro de dependencias exactas
 ├── src/                     # Código fuente de la aplicación
 │   ├── config/              # Archivos de configuración global
-│   │   ├── cloudinary.js    # Configuración de Cloudinary para carga de imágenes
-│   │   ├── database.js      # Configuración de la conexión a la base de datos PostgreSQL con Sequelize
-│   │   └── swagger.js       # Configuración de la documentación OpenAPI (Swagger)
-│   ├── controllers/         # Lógica de negocio para manejar las solicitudes HTTP
-│   │   ├── auth.controller.js     # Controladores para la autenticación de usuarios
-│   │   ├── category.controller.js # Controladores para operaciones CRUD de categorías
-│   │   └── product.controller.js  # Controladores para operaciones CRUD de productos (incluyendo manejo de imágenes)
-│   ├── middlewares/         # Funciones middleware de Express para pre-procesamiento de solicitudes
-│   │   ├── auth.middleware.js     # Middleware para verificar tokens JWT y proteger rutas
-│   │   └── upload.middleware.js   # Middleware para manejar la carga de archivos (imágenes) con Multer
-│   ├── models/              # Definiciones de esquemas de base de datos (modelos de Sequelize)
-│   │   ├── category.model.js # Modelo Sequelize para las categorías
-│   │   ├── index.js          # Archivo que inicializa Sequelize y exporta todos los modelos
-│   │   ├── product.model.js  # Modelo Sequelize para los productos
-│   │   └── user.model.js     # Modelo Sequelize para los usuarios
-│   └── routes/              # Definiciones de las rutas de la API y su mapeo a los controladores
-│       ├── auth.routes.js     # Rutas relacionadas con la autenticación de usuarios
-│       ├── category.routes.js # Rutas relacionadas con las categorías
-│       └── product.routes.js  # Rutas relacionadas con los productos
-└── uploads/                 # Directorio para almacenar archivos temporales o cargados (si aplica)
+│   │   ├── cloudinary.js    # Configuración de Cloudinary
+│   │   ├── database.js      # Conexión PostgreSQL con Sequelize
+│   │   └── swagger.js       # Configuración de OpenAPI (Swagger)
+│   ├── controllers/         # Lógica de negocio (Controladores)
+│   │   ├── auth.controller.js     # Autenticación
+│   │   ├── category.controller.js # CRUD de categorías
+│   │   └── product.controller.js  # CRUD de productos e Inventario (Stock/Movimientos)
+│   ├── middlewares/         # Middlewares (Pre-procesamiento)
+│   │   ├── auth.middleware.js     # Verificación JWT y Roles
+│   │   └── upload.middleware.js   # Manejo de imágenes con Multer
+│   ├── models/              # Modelos de base de datos (Sequelize)
+│   │   ├── category.model.js # Modelo de Categorías
+│   │   ├── movement.model.js # NUEVO: Modelo de historial de movimientos de stock
+│   │   ├── product.model.js  # Modelo de Productos
+│   │   └── user.model.js     # Modelo de Usuarios
+│   └── routes/              # Definición de rutas de la API
+└── uploads/                 # Directorio para archivos temporales
 ```
 
 ### Explicación Detallada de Carpetas y Archivos Clave:
@@ -160,7 +156,7 @@ La API proporciona los siguientes grupos de endpoints, documentados completament
 
 ### Autenticación (`/api/auth`)
 
--   `POST /api/auth/register`: Registra un nuevo usuario en el sistema.
+-   `POST /api/auth/register`: Registra un nuevo usuario.
 -   `POST /api/auth/login`: Autentica a un usuario y devuelve un token JWT.
 
 ### Categorías (`/api/categories`)
@@ -173,15 +169,16 @@ Requiere token de autenticación para operaciones de creación, actualización y
 -   `PUT /api/categories/:id`: Actualiza una categoría existente por su ID.
 -   `DELETE /api/categories/:id`: Elimina una categoría por su ID.
 
-### Productos (`/api/products`)
+### Productos e Inventario (`/api/products`)
 
-Requiere token de autenticación para operaciones de creación, actualización y eliminación.
-
--   `GET /api/products`: Obtiene todos los productos disponibles.
--   `GET /api/products/:id`: Obtiene un producto específico por su ID.
--   `POST /api/products`: Crea un nuevo producto, con soporte para carga de imágenes.
--   `PUT /api/products/:id`: Actualiza un producto existente por su ID, con soporte para actualizar imágenes.
--   `DELETE /api/products/:id`: Elimina un producto por su ID.
+-   `GET /api/products`: Obtiene todos los productos (soporta búsqueda y paginación).
+-   `GET /api/products/:id`: Detalle completo de un producto.
+-   `POST /api/products`: Crea un nuevo producto con imagen.
+-   `PUT /api/products/:id`: Actualiza información e imagen del producto.
+-   `DELETE /api/products/:id`: Elimina producto y limpia Cloudinary.
+-   **`POST /api/products/:id/add-stock`**: Reabastecimiento de stock (Entrada). Registra el movimiento en el historial.
+-   **`POST /api/products/:id/sell`**: Registro de venta (Salida). Valida existencias y genera registro de auditoría.
+-   **`GET /api/products/:id/movements`**: Recupera el historial cronológico de movimientos del producto.
 
 ## 📄 Documentación de la API (Swagger UI)
 
@@ -208,7 +205,7 @@ Las contribuciones son bienvenidas. Si deseas contribuir, por favor, sigue estos
 
 ## 📝 Licencia
 
-Este proyecto está bajo la Licencia ISC. Consulta el archivo `LICENSE` para más detalles (si existe).
+Este proyecto está bajo la Licencia ISC.
 
 ---
 
