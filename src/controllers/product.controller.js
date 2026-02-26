@@ -1,4 +1,4 @@
-const { Product, Category, User } = require('../models');
+const { Product, Category, User, Movement, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
@@ -120,16 +120,14 @@ exports.createProduct = async (req, res) => {
     }
 };
 
-// 4. ACTUALIZAR PRODUCTO (Protegido contra IDs raros)
+// 4. ACTUALIZAR PRODUCTO
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Validación de seguridad
         if (!isUUID(id)) {
-            // Si el ID es malo y subieron archivo, lo borramos antes de rechazar
             if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-            return res.status(400).json({ success: false, message: 'El ID proporcionado no es válido (UUID)' });
+            return res.status(400).json({ success: false, message: 'El ID proporcionado no es válido' });
         }
 
         const product = await Product.findByPk(id);
@@ -143,19 +141,14 @@ exports.updateProduct = async (req, res) => {
 
         if (req.file) {
             try {
-                // Borrar foto vieja si existe
                 if (product.public_id) {
                     await cloudinary.uploader.destroy(product.public_id);
                 }
-
-                // Subir nueva
                 const result = await cloudinary.uploader.upload(req.file.path, {
                     folder: 'inventario_productos'
                 });
-
                 datosActualizados.imagen = result.secure_url;
                 datosActualizados.public_id = result.public_id;
-
                 fs.unlinkSync(req.file.path);
             } catch (error) {
                 console.error('Error actualizando imagen:', error);
@@ -165,7 +158,6 @@ exports.updateProduct = async (req, res) => {
         }
 
         await product.update(datosActualizados);
-
         res.status(200).json({ success: true, data: product });
 
     } catch (error) {
@@ -179,26 +171,107 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
     try {
         const { id } = req.params;
-
-        // Validación de seguridad
-        if (!isUUID(id)) {
-            return res.status(400).json({ success: false, message: 'El ID proporcionado no es válido (UUID)' });
-        }
+        if (!isUUID(id)) return res.status(400).json({ success: false, message: 'ID no válido' });
 
         const product = await Product.findByPk(id);
+        if (!product) return res.status(404).json({ success: false, message: 'No encontrado' });
 
-        if (!product) {
-            return res.status(404).json({ success: false, message: 'No encontrado' });
-        }
-
-        // Limpiar Cloudinary
         if (product.public_id) {
             await cloudinary.uploader.destroy(product.public_id);
         }
-        
         await product.destroy();
-
         res.status(200).json({ success: true, message: 'Producto eliminado correctamente' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Error del servidor' });
+    }
+};
+
+// 6. AGREGAR STOCK (Entrada)
+exports.addStock = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const { cantidad, motivo } = req.body;
+
+        if (!isUUID(id)) return res.status(400).json({ success: false, message: 'ID no válido' });
+        if (!cantidad || cantidad <= 0) return res.status(400).json({ success: false, message: 'Cantidad debe ser mayor a 0' });
+
+        const product = await Product.findByPk(id);
+        if (!product) return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+
+        product.stock += parseInt(cantidad);
+        await product.save({ transaction });
+
+        await Movement.create({
+            tipo: 'entrada',
+            cantidad: parseInt(cantidad),
+            motivo: motivo || 'Reabastecimiento',
+            productId: id,
+            userId: req.user.id
+        }, { transaction });
+
+        await transaction.commit();
+        res.status(200).json({ success: true, data: product });
+    } catch (error) {
+        await transaction.rollback();
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Error del servidor' });
+    }
+};
+
+// 7. VENDER PRODUCTO (Salida)
+exports.sellProduct = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const { cantidad, motivo } = req.body;
+
+        if (!isUUID(id)) return res.status(400).json({ success: false, message: 'ID no válido' });
+        if (!cantidad || cantidad <= 0) return res.status(400).json({ success: false, message: 'Cantidad debe ser mayor a 0' });
+
+        const product = await Product.findByPk(id);
+        if (!product) return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+
+        if (product.stock < cantidad) {
+            return res.status(400).json({ success: false, message: 'Stock insuficiente' });
+        }
+
+        product.stock -= parseInt(cantidad);
+        await product.save({ transaction });
+
+        await Movement.create({
+            tipo: 'salida',
+            cantidad: parseInt(cantidad),
+            motivo: motivo || 'Venta',
+            productId: id,
+            userId: req.user.id
+        }, { transaction });
+
+        await transaction.commit();
+        res.status(200).json({ success: true, data: product });
+    } catch (error) {
+        await transaction.rollback();
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Error del servidor' });
+    }
+};
+
+// 8. OBTENER MOVIMIENTOS DE UN PRODUCTO
+exports.getProductMovements = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!isUUID(id)) return res.status(400).json({ success: false, message: 'ID no válido' });
+
+        const movements = await Movement.findAll({
+            where: { productId: id },
+            order: [['createdAt', 'DESC']],
+            include: [
+                { model: User, as: 'usuario', attributes: ['id', 'nombre', 'email'] }
+            ]
+        });
+
+        res.status(200).json({ success: true, data: movements });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Error del servidor' });
