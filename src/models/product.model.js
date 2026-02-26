@@ -45,6 +45,10 @@ Product.associate = (models) => {
         foreignKey: 'userId',
         as: 'usuario'
     });
+    Product.hasMany(models.Movement, {
+        foreignKey: 'productId',
+        as: 'movimientos'
+    });
 };
 
 module.exports = Product;
