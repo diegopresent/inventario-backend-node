@@ -4,12 +4,14 @@ const { sequelize } = require('../config/database');
 const User = require('./user.model');
 const Product = require('./product.model');
 const Category = require('./category.model');
+const Movement = require('./movement.model');
 
 // 2. Empaquetarlos en un objeto
 const models = {
     User,
     Product,
-    Category
+    Category,
+    Movement
 };
 
 // 3. Recorrer cada modelo y ver si tiene el método "associate"
