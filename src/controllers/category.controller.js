@@ -72,7 +72,7 @@ exports.createCategory = async (req, res) => {
         console.error('Error al crear categoria:', error);
         res.status(500).json({
             success: false,
-            message: 'Error del servidor'
+            message: error.errors ? error.errors.map(e => e.message).join(', ') : 'Error del servidor'
         });
     }
 };
@@ -102,7 +102,7 @@ exports.updateCategory = async (req, res) => {
         console.error('Error al actualizar:', error);
         res.status(500).json({
             success: false,
-            message: 'Error del servidor'
+            message: error.errors ? error.errors.map(e => e.message).join(', ') : 'Error del servidor'
         });
     }
 };
