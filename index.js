@@ -15,18 +15,15 @@ const swaggerUI = require('swagger-ui-express');
 const swaggerSpec = require('./src/config/swagger');
 const app = express();
 
-// --- CONFIGURACIÓN DE CORS ---
+// Configuración de CORS robusta
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     process.env.FRONTEND_URL
-].filter(Boolean).map(url => url.replace(/\/$/, ""));
-
-console.log('[CORS] Orígenes permitidos:', allowedOrigins);
+].filter(Boolean).map(url => url.replace(/\/$/, "")); // Eliminar "/" al final de las URLs
 
 const corsOptions = {
     origin: function (origin, callback) {
-        // Permitir peticiones sin origen (Postman, etc.)
         if (!origin) return callback(null, true);
         
         const cleanOrigin = origin.replace(/\/$/, "");
@@ -34,26 +31,18 @@ const corsOptions = {
         if (allowedOrigins.includes(cleanOrigin)) {
             callback(null, true);
         } else {
-            console.log(`[CORS] Intento de acceso denegado desde: ${origin}`);
-            // En lugar de lanzar Error, pasamos "false" para que el navegador maneje el bloqueo
-            callback(null, false);
+            console.log(`[CORS] Origen bloqueado: ${origin}`);
+            callback(new Error('Bloqueado por CORS'));
         }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-    optionsSuccessStatus: 200 // Algunas versiones de navegadores antiguos fallan con 204
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
-// 1. CORS debe ir ANTES que cualquier otro middleware
+// Middlewares
+app.use(helmet());
 app.use(cors(corsOptions));
-// 2. Manejo explícito de Preflight para todas las rutas
-app.options('*', cors(corsOptions));
-
-// Resto de Middlewares
-app.use(helmet({
-    crossOriginResourcePolicy: false, // Evita que Helmet bloquee recursos compartidos
-}));
 app.use(morgan('dev'));
 app.use(express.json());
 
