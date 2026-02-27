@@ -20,22 +20,17 @@ const allowedOrigins = [
     'http://localhost:3000',
     process.env.FRONTEND_URL // URL EXACTA DE VERCEL
 ];
-const corsOptions = {
+app.use(cors({
     origin: function (origin, callback) {
-        // origin permite peticiones sin origen (como Postman o Server-to-Server)
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            console.log("Origen bloqueado por CORS:", origin); // Log para depurar en Render
-            callback(new Error('Bloqueado por CORS'));
+            callback(new Error('No permitido por CORS'));
         }
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos permitidos
-    allowedHeaders: ['Content-Type', 'Authorization'], // Headers permitidos
-    credentials: true // Permite cookies/tokens si los usas
-};
+    credentials: true
+}));
 // Middlewares
-app.use(cors(corsOptions));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
@@ -43,7 +38,7 @@ app.use(express.json());
 // Definicion de Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
-app.use('/api/products', productRoutes); 
+app.use('/api/products', productRoutes);
 
 // Ruta base
 app.get('/', (req, res) => {
