@@ -15,27 +15,29 @@ const swaggerUI = require('swagger-ui-express');
 const swaggerSpec = require('./src/config/swagger');
 const app = express();
 
-// Configuración de CORS con lista blanca
+// Configuración de CORS robusta
 const allowedOrigins = [
-    'http://localhost:5173', // Vite (Frontend común)
-    'http://localhost:3000', // Swagger o Local
-    process.env.FRONTEND_URL  // URL de Vercel (Producción)
-];
+    'http://localhost:5173',
+    'http://localhost:3000',
+    process.env.FRONTEND_URL
+].filter(Boolean).map(url => url.replace(/\/$/, "")); // Eliminar "/" al final de las URLs
 
 const corsOptions = {
     origin: function (origin, callback) {
-        // Permitir peticiones sin origen (como herramientas de prueba tipo Postman)
         if (!origin) return callback(null, true);
         
-        if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes(origin)) {
+        const cleanOrigin = origin.replace(/\/$/, "");
+        
+        if (allowedOrigins.includes(cleanOrigin)) {
             callback(null, true);
         } else {
-            callback(new Error('Bloqueado por políticas de CORS de este Servidor'));
+            console.log(`[CORS] Origen bloqueado: ${origin}`);
+            callback(new Error('Bloqueado por CORS'));
         }
     },
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
-    optionsSuccessStatus: 204
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
 // Middlewares
