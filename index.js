@@ -35,8 +35,8 @@ const corsOptions = {
     credentials: true // Permite cookies/tokens si los usas
 };
 // Middlewares
-app.use(helmet());
 app.use(cors(corsOptions));
+app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
 
