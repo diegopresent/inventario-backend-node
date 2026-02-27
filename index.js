@@ -15,9 +15,32 @@ const swaggerUI = require('swagger-ui-express');
 const swaggerSpec = require('./src/config/swagger');
 const app = express();
 
+// Configuración de CORS con lista blanca
+const allowedOrigins = [
+    'http://localhost:5173', // Vite (Frontend común)
+    'http://localhost:3000', // Swagger o Local
+    process.env.FRONTEND_URL  // URL de Vercel (Producción)
+];
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Permitir peticiones sin origen (como herramientas de prueba tipo Postman)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Bloqueado por políticas de CORS de este Servidor'));
+        }
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+    optionsSuccessStatus: 204
+};
+
 // Middlewares
 app.use(helmet());
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
 
