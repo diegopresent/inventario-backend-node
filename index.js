@@ -3,70 +3,85 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const path = require('path');
-// Importamos modelos
 const { sequelize } = require('./src/models');
 
-// Importar Rutas
 const authRoutes = require('./src/routes/auth.routes');
 const categoryRoutes = require('./src/routes/category.routes');
 const productRoutes = require('./src/routes/product.routes');
 const swaggerUI = require('swagger-ui-express');
 const swaggerSpec = require('./src/config/swagger');
+
 const app = express();
-// --- CONFIGURACIÓN DE SEGURIDAD CORS ---
+
+// 1. LISTA BLANCA ESTRICTA (Tus orígenes definidos)
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    process.env.FRONTEND_URL // URL EXACTA DE VERCEL
+    'https://inventario-frontend-react-vite.vercel.app'
 ];
-app.use(cors({
+
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ""));
+}
+
+const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Permitir peticiones sin origen (como Postman)
+        if (!origin) return callback(null, true);
+        
+        const cleanOrigin = origin.replace(/\/$/, "");
+        if (allowedOrigins.includes(cleanOrigin)) {
             callback(null, true);
         } else {
+            console.error(`[CORS BLOQUEO] El origen ${origin} no está autorizado.`);
             callback(new Error('No permitido por CORS'));
         }
     },
-    credentials: true
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    optionsSuccessStatus: 200 // Vital para que el Preflight (OPTIONS) no falle
+};
+
+// 2. APLICAR CORS ANTES QUE NADA
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Responder a peticiones Preflight de forma explícita
+
+// 3. RESTO DE MIDDLEWARES
+app.use(helmet({
+    crossOriginResourcePolicy: false,
 }));
-// Middlewares
-app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Definicion de Rutas
+// 4. RUTAS
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
-app.use('/api/products', productRoutes);
+app.use('/api/products', productRoutes); 
 
-// Ruta base
 app.get('/', (req, res) => {
-    res.json({
-        success: true,
-        message: 'API del Sistema de Inventario funcionando correctamente',
-        version: '1.0.0'
+    res.json({ success: true, message: 'API funcionando correctamente' });
+});
+
+app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+
+// 5. MANEJO DE 404 (Para depurar por qué sale 404 en el login)
+app.use((req, res) => {
+    console.error(`[404 NOT FOUND] Ruta buscada: ${req.method} ${req.url}`);
+    res.status(404).json({ 
+        success: false, 
+        message: `La ruta ${req.url} con método ${req.method} no existe en este servidor.` 
     });
 });
 
-// Inicializacion
 const PORT = process.env.PORT || 3000;
-app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 const startServer = async () => {
     try {
         await sequelize.authenticate();
-        console.log('Conexion a la base de datos establecida correctamente');
-
-        await sequelize.sync({ alter: true, force: false });
-        console.log('Modelos sincronizados y relaciones establecidas');
-
-        app.listen(PORT, () => {
-            console.log(`Servidor corriendo en el puerto ${PORT}`);
-        });
-
+        await sequelize.sync({ alter: true });
+        app.listen(PORT, () => console.log(`Servidor seguro en puerto ${PORT}`));
     } catch (error) {
-        console.error('Error critico al iniciar el servidor:', error);
-        process.exit(1);
+        console.error('Error al iniciar servidor:', error);
     }
 };
 
